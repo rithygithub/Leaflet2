@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Delivery Tracker</title>
+
+    <link rel="stylesheet" href="dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+    <style>
+        #map { height: 500px; width: 100%; }
+        #status { margin: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>Food Delivery to Nearby Restaurants</h2>
+    <p id="status">Waiting for GPS permission...</p>
+    <button onclick="checkPermission()">Start Tracking</button>
+
+    <label for="restaurant">Select Nearby Restaurant:</label>
+    <select id="restaurant">
+        <option value="11.5650, 104.9100">Oknha Tep Phan St. (182) - Restaurant A</option>
+        <option value="11.5718, 104.9008">Luna Prime - TK Roundabout - Restaurant B</option>
+        <option value="11.5635, 104.9145">Restaurant C</option>
+    </select>
+
+    <button onclick="deliverFood()">Deliver Food</button>
+    <div id="map"></div>
+
+    <script src="dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+    <script>
+        let map, userMarker, routingControl;
+        let userLocation = null;
+
+        document.addEventListener("DOMContentLoaded", function () {
+            map = L.map('map').setView([11.5650, 104.9100], 15);
+            L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+        });
+
+        function checkPermission() {
+            if (!navigator.permissions) {
+                document.getElementById("status").textContent = "Geolocation is not supported.";
+                return;
+            }
+
+            navigator.permissions.query({ name: 'geolocation' }).then(function (result) {
+                if (result.state === 'granted' || result.state === 'prompt') {
+                    trackLocation(); // ✅ Start tracking immediately if permission was granted
+                } else {
+                    alert("Please enable location permissions manually.");
+                }
+            }).catch(() => {
+                trackLocation(); // ✅ Fallback if permission query fails
+            });
+        }
+
+        // Kalman Filter for GPS Smoothing
+        class KalmanFilter {
+            constructor(q = 0.01, r = 0.5) {
+                this.q = q; // Process noise
+                this.r = r; // Measurement noise
+                this.x = 0; // Estimated location
+                this.p = 1; // Initial error covariance
+            }
+
+            update(measurement) {
+                let k = this.p / (this.p + this.r); // Kalman gain
+                this.x = this.x + k * (measurement - this.x);
+                this.p = (1 - k) * this.p + this.q; // Update covariance
+                return this.x;
+            }
+        }
+
+        let kalmanLat = new KalmanFilter();
+        let kalmanLon = new KalmanFilter();
+
+        function trackLocation() {
+            if (!navigator.geolocation) {
+                document.getElementById("status").textContent = "Geolocation is not supported.";
+                return;
+            }
+
+            navigator.geolocation.watchPosition(
+                function (position) {
+                    let lat = kalmanLat.update(position.coords.latitude);
+                    let lon = kalmanLon.update(position.coords.longitude);
+                    userLocation = [lat, lon];
+
+                    document.getElementById("status").textContent = `Current Location: ${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+
+                    if (userMarker) {
+                        map.removeLayer(userMarker);
+                    }
+
+                    userMarker = L.marker([lat, lon]).addTo(map).bindPopup("Your Smoothed Location").openPopup();
+                    map.panTo([lat, lon]);
+                },
+                function (error) {
+                    console.error("Error getting location: ", error);
+                },
+                { enableHighAccuracy: true, timeout: 2500, maximumAge: 5000 } // ✅ Updates every 2500ms, smoothing with Kalman Filter
+            );
+        }
+
+        function deliverFood() {
+            if (!userLocation) {
+                alert("Please enable location tracking first!");
+                return;
+            }
+
+            let selectedRestaurant = document.getElementById('restaurant').value.split(',');
+            let restaurantLocation = [parseFloat(selectedRestaurant[0]), parseFloat(selectedRestaurant[1])];
+
+            if (routingControl) {
+                map.removeControl(routingControl); // Remove old route if exists
+            }
+
+            routingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(userLocation[0], userLocation[1]),  // User's location
+                    L.latLng(restaurantLocation[0], restaurantLocation[1]) // Restaurant location
+                ],
+                routeWhileDragging: true
+            }).addTo(map);
+
+            alert("Food delivery in progress!");
+        }
+    </script>
+</body>
+</html>

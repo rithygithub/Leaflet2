@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Delivery Tracker</title>
+
+    <link rel="stylesheet" href="dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+    <style>
+        #map { height: 500px; width: 100%; }
+        #status { margin: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>Food Delivery to Nearby Restaurants</h2>
+    <p id="status">Waiting for GPS permission...</p>
+    <button onclick="trackLocation()">Start Tracking</button>
+
+    <label for="restaurant">Select Nearby Restaurant:</label>
+    <select id="restaurant">
+        <option value="11.5650, 104.9100">Oknha Tep Phan street </option>
+        <option value="11.5721, 104.8990">LUNA prime</option> 
+        <option value="11.5635, 104.9145">Restaurant C</option>
+    </select>
+
+    <button onclick="deliverFood()">Deliver Food</button>
+    <div id="map"></div>
+
+    <script src="dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+    <script>
+        let map, userMarker, routingControl;
+        let userLocation = null;
+
+        document.addEventListener("DOMContentLoaded", function () {
+            map = L.map('map').setView([11.5650, 104.9100], 15);
+            L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+        });
+
+        function trackLocation() {
+            if (!navigator.geolocation) {
+                document.getElementById("status").textContent = "Geolocation is not supported.";
+                return;
+            }
+
+            navigator.geolocation.watchPosition(
+                function (position) {
+                    userLocation = [position.coords.latitude, position.coords.longitude];
+                    document.getElementById("status").textContent = `Current Location: ${userLocation[0]}, ${userLocation[1]}`;
+
+                    if (!userMarker) {
+                        userMarker = L.marker(userLocation).addTo(map)
+                            .bindPopup("Your Location")
+                            .openPopup();
+                    } else {
+                        userMarker.setLatLng(userLocation);
+                        map.panTo(userLocation);
+                    }
+                },
+                function (error) {
+                    console.error("Error getting location: ", error);
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        }
+
+        function deliverFood() {
+            if (!userLocation) {
+                alert("Please enable location tracking first!");
+                return;
+            }
+
+            let selectedRestaurant = document.getElementById('restaurant').value.split(',');
+            let restaurantLocation = [parseFloat(selectedRestaurant[0]), parseFloat(selectedRestaurant[1])];
+
+            if (routingControl) {
+                map.removeControl(routingControl); // Remove old route if exists
+            }
+
+            routingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(userLocation[0], userLocation[1]),  // User's location
+                    L.latLng(restaurantLocation[0], restaurantLocation[1]) // Restaurant location
+                ],
+                routeWhileDragging: true
+            }).addTo(map);
+
+            alert("Food delivery in progress!");
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaflet Map - Oknha Tep Phan St. 182</title>
+
+    <!-- Load Leaflet CSS from the local `dist/` directory -->
+    <link rel="stylesheet" href="dist/leaflet.css" />
+
+    <style>
+        /* Ensure the map container has a defined height */
+        #map {
+            height: 500px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <!-- Load local Leaflet JS -->
+    <script src="dist/leaflet.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            console.log("Leaflet loaded:", typeof L);
+
+            if (typeof L === "undefined") {
+                console.error("Leaflet failed to load!");
+                return;
+            }
+
+            // Set the view to Oknha Tep Phan St. 182, Phnom Penh
+            var map = L.map('map').setView([11.5650, 104.9100], 18);
+
+            // Load and display a tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Add a marker for Oknha Tep Phan St. 182
+            L.marker([11.5650, 104.9100]).addTo(map)
+                .bindPopup('Welcome to Oknha Tep Phan St. 182!')
+                .openPopup();
+        });
+    </script>
+</body>
+</html>
